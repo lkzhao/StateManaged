@@ -12,12 +12,7 @@ public protocol StateManaged: AnyObject {
 }
 
 public extension StateManaged {
-    func send(_ action: Action) {
-        switch reduce(state: &state, action: action) {
-        case .none:
-            break
-        case .run(let block):
-            block()
-        }
+    @MainActor func send(_ action: Action) {
+        StateManagerQueue.send(actor: self, action: action)
     }
 }
