@@ -15,40 +15,47 @@ struct SendMessage<T: StateManaged>: AnyMessage {
     let actor: T
     let action: T.Action
 
-    @MainActor
     func run() {
         actor.process(state: &actor.state, action: action)
     }
 }
 
 struct RunMessage: AnyMessage {
-    let effect: () async -> Void
+    let effect: () -> Void
 
-    @MainActor
     func run() {
-        Task {
-            await effect()
-        }
+        effect()
     }
 }
 
 class StateManagerQueue {
-    static var queue = [AnyMessage]()
-    static var isProcessing = false
+    static var queues = [ObjectIdentifier: StateManagerQueue]()
+    var isProcessing = false
+    var queue = [AnyMessage]()
 
     static func send<T: StateManaged>(actor: T, action: T.Action) {
-        let message = SendMessage(actor: actor, action: action)
-        queue.append(message)
-        processQueue()
+        process(actor: actor,
+                message: SendMessage(actor: actor, action: action))
     }
 
-    static func run(effect: @escaping () async -> Void) {
-        let message = RunMessage(effect: effect)
-        queue.append(message)
-        processQueue()
+    static func run<T: StateManaged>(actor: T, effect: @escaping () -> Void) {
+        process(actor: actor,
+                message: RunMessage(effect: effect))
+    }
+    
+    static func process<T: StateManaged>(actor: T, message: AnyMessage) {
+        let id = ObjectIdentifier(actor)
+        if queues[id] == nil {
+            queues[id] = StateManagerQueue()
+        }
+        queues[id]!.process(id: id, message: message)
+        if queues[id]?.isProcessing == false {
+            queues[id] = nil
+        }
     }
 
-    static func processQueue() {
+    func process(id: ObjectIdentifier, message: AnyMessage) {
+        queue.append(message)
         guard !isProcessing else {
             return
         }

@@ -8,11 +8,11 @@ public protocol StateManaged: AnyObject {
 }
 
 public extension StateManaged {
-    @MainActor func send(_ action: Action) {
+    func send(_ action: Action) {
         StateManagerQueue.send(actor: self, action: action)
     }
 
-    @MainActor func runAfterProcess(_ effect: @escaping () async -> Void) {
-        StateManagerQueue.run(effect: effect)
+    func runAfterProcess(_ effect: @escaping () -> Void) {
+        StateManagerQueue.run(actor: self, effect: effect)
     }
 }
